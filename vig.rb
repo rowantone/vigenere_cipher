@@ -5,13 +5,12 @@ def encrypt(string, keys)
 
     string.each_byte.with_index do |char, i|
         key = (keys[i % keys.length]).ord
-        encrypted_word << (char+key)%256
-        puts "#{char} -- #{key} -- #{encrypted_word[i].ord}"
+        encrypted_word << ((char+key)%256).chr
     end 
-    encrypted_word.each_char do |c|
-        puts c
-    end
     puts "end encrypt"
+    open('encrypted.txt', 'w') do |f|
+        f.puts encrypted_word
+    end
     return encrypted_word
 end 
 
@@ -19,12 +18,8 @@ def decrypt_known(string, keys)
     decrypted_word = ""
     string.each_byte.with_index do |char, i|
         key = (keys[i % keys.length]).ord
-        decrypted_word << (char-key)%256
-        puts "#{char} -- #{key} -- #{decrypted_word[i].ord}"
+        decrypted_word << ((char-key)%256).chr
     end 
-    decrypted_word.each_char do |c|
-        puts c
-    end
     puts "end decrypt"
     return decrypted_word
 end 
@@ -95,10 +90,10 @@ INDEX_TO_LETTER = {0=>"a", 1=>"b", 2=>"c", 3=>"d", 4=>"e", 5=>"f", 6=>"g", 7=>"h
 LETTER_TO_INDEX = {"a"=>0,"b"=> 1,"c"=> 2,"d"=> 3,"e"=> 4,"f"=> 5,"g"=> 6,"h"=> 7,"i"=> 8,"j"=> 9, "k"=>10, "l"=>11, "m"=>12, "n"=>13, "o"=>14, "p"=>15, "q"=>16, "r"=>17, "s"=>18, "t"=>19, "u"=>20,"v"=>21, "w"=>22, "x"=>23, "y"=>24, "z"=>25}
 
 LETTER_FREQUENCY = {"e"=>12.702,"t"=>9.356,"a"=>8.167,"o"=>7.507,"i"=>6.966,"n"=>6.749,"s"=>6.327,"h"=>6.094,"r"=>5.987,"d"=>4.253,"l"=>4.025,"u"=>2.758,"w"=>2.560,"m"=>2.406,"f"=>2.228,"c"=>2.202,"g"=>2.015,"y"=>1.994,"p"=>1.929,"b"=>1.492,"k"=>1.292,"v"=>0.978,"j"=>0.153,"x"=>0.150,"q"=>0.095,"z"=>0.077}
-y = "i love my boyfriend"
-x = encrypt(y, "abcdcba")
+y = "I Love mY boYfriend !!!"
+x = encrypt(y, "thisIsTheStupidKey")
 
 puts x
 
-z = decrypt_known(x,"abcdcba")
+z = decrypt_known(x,"thisIsTheStupidKey")
 puts z
