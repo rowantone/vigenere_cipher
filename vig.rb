@@ -1,45 +1,114 @@
-# work on keys using "whatever".bytes conv
+# VIGENERE CIPHER -- ROWAN
+# http://rowan.codes/
 
-def encrypt(string, keys)
+$verbose = 0
+$elapsed_time = Time.now
+INDEX_TO_LETTER = {0=>"a", 1=>"b", 2=>"c", 3=>"d", 4=>"e", 5=>"f", 6=>"g", 7=>"h", 8=>"i", 9=>"j", 10=>"k", 11=>"l", 12=>"m", 13=>"n", 14=>"o", 15=>"p", 16=>"q", 17=>"r", 18=>"s", 19=>"t", 20=>"u", 21=>"v", 22=>"w", 23=>"x", 24=>"y", 25=>"z"}
+
+def send_info(message)
+    if $verbose == 1
+        #do nothing
+    else
+        puts "INFO [#{(Time.now-$elapsed_time).round(3).to_s.ljust(5, '0')}] -- #{message}"
+    end
+end
+
+def get_freq(filename)
+    freq = Hash.new
+    testing = File.open(filename)
+    string = testing.read.force_encoding 'ASCII-8BIT'
+    total = 0
+    string.each_byte do |char|
+        if freq[char] != nil
+            freq[char] += 1
+            total += 1
+        else
+            freq[char] = 1
+            total += 1
+        end
+    end
+    255.times do |i|
+        if freq[i] == nil
+            freq[i] = 0
+        else 
+            freq[i] = (freq[i].to_f/total).round(8)
+        end
+    end
+    freq = freq.sort_by {|i,j| [i]}
+    testing.close
+    return freq
+end
+
+def get_freq_string(string)
+    freq = Hash.new
+    total = 0
+    string.each_byte do |char|
+        if freq[char] != nil
+            freq[char] += 1
+            total += 1
+        else
+            freq[char] = 1
+            total += 1
+        end
+    end
+    255.times do |i|
+        if freq[i] == nil
+            freq[i] = 0
+        else 
+            freq[i] = (freq[i].to_f/total).round(8)
+        end
+    end
+    freq = freq.sort_by {|i,j| [i]}
+    return freq
+end
+
+def encrypt(filename, keys, output)
+    send_info("Encrypting #{filename}...")
+    file_input = File.open(filename)
+    string = file_input.read.force_encoding 'ASCII-8BIT'
     encrypted_word = ""
-
     string.each_byte.with_index do |char, i|
         key = (keys[i % keys.length]).ord
         encrypted_word << ((char+key)%256).chr
-    end 
-    puts "end encrypt"
-    open('encrypted.txt', 'w') do |f|
-        f.puts encrypted_word
     end
+    x = File.open(output, "w")
+    x.puts encrypted_word
+    x.close
+    send_info("done!")
     return encrypted_word
 end 
 
-def decrypt_known(string, keys)
+def decrypt_known(filename, keys, output)
+    send_info("Decrypting #{filename}...")
+    file_input = File.open(filename)
+    string = file_input.read.force_encoding 'ASCII-8BIT'
     decrypted_word = ""
     string.each_byte.with_index do |char, i|
         key = (keys[i % keys.length]).ord
         decrypted_word << ((char-key)%256).chr
     end 
-    puts "end decrypt"
+    x = File.open(output, "w")
+    x.puts decrypted_word
+    x.close
     return decrypted_word
 end 
 
-def decrypt_unknown(string)
+def decrypt_unknown(filename, output)
     def frequency(array)
         hash = Hash.new(0)
         array.each{|key| hash[key] += 1}
         return hash
     end
     
-    def coincidences(string)
+    def find_key_length(string)
+        send_info("Finding key length...")
         def gcd(distance_array)
             array = []
             for a in distance_array[0...10] do
                 array.insert(-1, a[0])
             end
-            p array
-            x = array.reduce(:gcd)
-            puts x
+            key_length = array.reduce(:gcd)
+            return key_length
         end
 
         check_string = string.dup
@@ -49,7 +118,7 @@ def decrypt_unknown(string)
         # loops
         # find indexes of strings of length 3
 		(1...check_string.length-2).step(1) do |i|
-			grab = "#{check_string[i-1]}#{check_string[i]}#{check_string[i+1]}"
+            grab = "#{check_string[i-1].chr}#{check_string[i].chr}#{check_string[i+1].chr}"
             if coincidence_hash[grab] != nil
                 coincidence_hash[grab].insert(-1, i)
             else
@@ -68,32 +137,110 @@ def decrypt_unknown(string)
                         distance_hash[grab] = 0
                     end
                 end
-            else
-                next
-            end
+            else next end
         end
+        
         distance_hash = distance_hash.sort_by {|i,j| [-j, i]}
-        p distance_hash[0]
-        gcd(distance_hash.to_a)
-
-        # coincidence_hash = coincidence_hash.sort_by {|i,j| [-j.length, i]}
-        # p coincidence_hash
+        key_length = gcd(distance_hash.to_a)
+        send_info("Key length: #{key_length} characters")
+        return key_length
     end
-    x = frequency(string.split(""))
-    x = x.sort_by{|a,b|b}
-    x.reverse!
-    # p x
-    coincidences(string)
+
+    def find_key(key_length, string)
+        send_info("Finding key...")
+        def conv_integer_to_char(array)
+            result = []
+            for element in array
+                result.insert(-1, element.chr)
+            end
+            return result
+        end
+        send_info("Training reference...")
+        darwin = get_freq("darwin.txt")
+        current_check = []
+        char_freq = Hash.new
+        the_key = []
+        send_info("Deciphering...")
+        key_length.times do |k|
+            string.each_byte.with_index do |char, i|
+                if i % key_length == k
+                    current_check.insert(-1, char)
+                else next end
+                current_check = conv_integer_to_char(current_check)
+            end
+            char_freq = get_freq_string(current_check.join)
+            shift = -1
+            max = 0
+            char_freq.rotate!(97)
+            26.times do |i|
+                total = 0
+                255.times do |j|
+                    if darwin[j][1].to_f == 0 || char_freq[j][1].to_f == 0
+                        next
+                    else
+                        total += (darwin[j][1].to_f * char_freq[j][1].to_f)
+                    end
+                end
+                if total > max
+                    max = total
+                    shift = i
+                else end
+                char_freq.rotate!
+            end
+            the_key.insert(-1, INDEX_TO_LETTER[shift])
+            print "suspected key: #{the_key.join}\r"
+            
+            char_freq.rotate!(-26)
+            shift = -1
+            max = 0
+            current_check.clear
+        end
+        puts
+        send_info("done!")
+        return the_key
+    end
+    
+    input_file = File.open(filename)
+    input_string = input_file.read.force_encoding 'ASCII-8BIT'
+    key_length = find_key_length(input_string)
+    key = find_key(key_length, input_string)
+    decrypt_known(filename, key, output)
 end
-INDEX_TO_LETTER = {0=>"a", 1=>"b", 2=>"c", 3=>"d", 4=>"e", 5=>"f", 6=>"g", 7=>"h", 8=>"i", 9=>"j", 10=>"k", 11=>"l", 12=>"m", 13=>"n", 14=>"o", 15=>"p", 16=>"q", 17=>"r", 18=>"s", 19=>"t", 20=>"u", 21=>"v", 22=>"w", 23=>"x", 24=>"y", 25=>"z"}
 
-LETTER_TO_INDEX = {"a"=>0,"b"=> 1,"c"=> 2,"d"=> 3,"e"=> 4,"f"=> 5,"g"=> 6,"h"=> 7,"i"=> 8,"j"=> 9, "k"=>10, "l"=>11, "m"=>12, "n"=>13, "o"=>14, "p"=>15, "q"=>16, "r"=>17, "s"=>18, "t"=>19, "u"=>20,"v"=>21, "w"=>22, "x"=>23, "y"=>24, "z"=>25}
+def get_help
+    puts
+    puts "\tUsage: vig.rb (-q) [input] [output] [-e|-d|-a] (key)"
+    puts "Optional:"
+    puts "\t-q\tverbose output (ignore INFO)"
+    puts "Arguments:"
+    puts "\tinput\tinput file name"
+    puts "\toutput\toutput file"
+    puts "\t-e\tencrypt a file, with given key"
+    puts "\t-d\tdecrypt a file, with given key"
+    puts "\t-a\tattack a file, not knowing key"
+    puts "\tkey\tlowercase a-z only (sorry) for encrypt/decrypt"
+end
 
-LETTER_FREQUENCY = {"e"=>12.702,"t"=>9.356,"a"=>8.167,"o"=>7.507,"i"=>6.966,"n"=>6.749,"s"=>6.327,"h"=>6.094,"r"=>5.987,"d"=>4.253,"l"=>4.025,"u"=>2.758,"w"=>2.560,"m"=>2.406,"f"=>2.228,"c"=>2.202,"g"=>2.015,"y"=>1.994,"p"=>1.929,"b"=>1.492,"k"=>1.292,"v"=>0.978,"j"=>0.153,"x"=>0.150,"q"=>0.095,"z"=>0.077}
-y = "I Love mY boYfriend !!!"
-x = encrypt(y, "thisIsTheStupidKey")
+def get_input
+    offset = 0
+    if ARGV.include? "-q"
+        verbose = 1
+        offset += 1
+    end
+    if ARGV[offset+2] == "-e"
+        encrypt(ARGV[offset], ARGV[offset+3], ARGV[offset+1])
+    elsif ARGV[offset+2] == "-d"
+        decrypt_known(ARGV[offset], ARGV[offset+3], ARGV[offset+1])
+    elsif ARGV[offset+2] == "-a"
+        decrypt_unknown(ARGV[offset], ARGV[offset+1])
+    else
+        get_help()
+    end
+end
 
-puts x
+def main
+    get_input
+end
 
-z = decrypt_known(x,"thisIsTheStupidKey")
-puts z
+main
+
